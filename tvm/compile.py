@@ -1,27 +1,32 @@
-import copy
-import os
-from typing import ChainMap, Dict, List
-import numpy as np
 import tvm
 from tvm import relax
 import tvm.meta_schedule as ms
 from tvm.relax.frontend.onnx import from_onnx
 import onnx
+import osarch
 
-model_file = "/Users/lisa/Downloads/k800-gnne-compiler-tests-master-models-llama-llama-65b-without-past/models/llama/llama-65b-without-past/decoder-merge-0.onnx"
+
+# config target
+model_file = "out/decoder-65B.onnx"
+TOTAL_TRIALS = 1000  # Change to 20000 for better performance if needed
+target = tvm.target.Target(
+    f"llvm -mtriple={tvm.target.codegen.llvm_get_system_triple()} -mcpu={tvm.target.codegen.llvm_get_system_cpu()} -num-cores=1")
+# sysarch = osarch.detect_system_architecture()
+work_dir = "out/tvm/tuning_logs"
+ext = 'so' if osarch.detect_system_os() == 'linux' else 'dylib'
+
+# load model
 onnx_model = onnx.load_model(model_file, load_external_data=True)
-
 N = 384
-inputs = {"hidden_in": [1, N, 8192],
-          "attn_mask": [1, 1, N, N],
-          "position_ids": [1, N]}
-mod: tvm.IRModule = from_onnx(onnx_model, inputs)
-mod.show()
-
-TOTAL_TRIALS = 500  # Change to 20000 for better performance if needed
-# Change to your target device
-target = tvm.target.arm_cpu(options="-mtriple=arm64-apple-macos -mcpu=apple-latest -num-cores=1")
-work_dir = "tvm/tuning_logs"
+inputs = {
+    "attn_mask": [1, 1, N, N],
+    "onnx::Unsqueeze_1": [1, N],
+    "input_tensor": [1, N, 8192]}
+input_dtypes = {
+    "attn_mask": "float32",
+    "onnx::Unsqueeze_1": "int64",
+    "input_tensor": "float32"}
+mod: tvm.IRModule = from_onnx(onnx_model, inputs, input_dtypes)
 
 
 @tvm.transform.module_pass(opt_level=0)
@@ -82,9 +87,8 @@ with target, tvm.ir.transform.PassContext(opt_level=0):
   )(mod)
 
 # Only show the main function
-with open('tvm/module.py', 'w') as f:
+with open('out/tvm/decoder.py', 'w') as f:
   f.write(mod.script())
 
-# ex = tvm.build(mod, target=target)
 ex = tvm.relax.build(mod, target=target)
-ex.export_library("tvm/decoder.dylib")
+ex.export_library(f"out/tvm/decoder.{ext}")
