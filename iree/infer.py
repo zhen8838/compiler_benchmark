@@ -17,4 +17,4 @@ input_datas = [np.random.rand(1, N, 8192).astype(np.float32), np.random.rand(
 
 # (input_datas[0],input_datas[1],input_datas[2])
 func = vm_module.lookup_function('init')
-results = func(input_datas[0],input_datas[1],input_datas[2]).to_host()
+results = func(input_datas[0], input_datas[1], input_datas[2]).to_host()

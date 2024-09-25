@@ -2,3 +2,6 @@ tvm/tuning_logs
 tvm/decoder.*
 .vscode
 out
+**/__pycache__
+tmp
+.env

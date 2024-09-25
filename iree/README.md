@@ -1,4 +1,3 @@
-
 # 1. install `iree-import-onnx`
 
 ⚠️ this tools in apart of iree-import-onnx, and torch-mlir only support py3.10/11.
@@ -23,11 +22,17 @@ python -m pip install \
 
 # 3. compile
 
-```sh
-iree-import-onnx out/decoder-65B.onnx -o out/iree/decoder.mlir
+1. convert onnx to mlir
 
+```sh
+iree-import-onnx xxx.onnx -o xxx.mlir
+```
+
+2. compile
+
+```sh
 iree-compile \
-  out/iree/decoder.mlir \
+  xxx.mlir \
   --iree-hal-target-backends=llvm-cpu \
   --iree-llvmcpu-target-cpu=host \
   --iree-llvmcpu-target-cpu-features=host \
@@ -38,32 +43,25 @@ iree-compile \
   --iree-llvmcpu-enable-ukernels=all \
   --iree-opt-aggressively-propagate-transposes \
   --iree-opt-outer-dim-concat \
-  -o out/iree/decoder.vmfb
+  -o xxx.vmfb
 ```
 
-4. infer
+3. generate inputs
 
 ```sh
-iree-run-module \
-  --module=out/iree/decoder.vmfb \
-  --device=local-task \
-  --input=1x1x384x384xf32=0.5 \
-  --input=1x384xi64=2 \
-  --input=1x384x8192xf32=1.2
+python iree/get_inputs.py --folder-name xxx
 ```
 
-# 5. benchmark
+# 4. benchmark
 
 ```sh
 iree-benchmark-module \
-  --module=out/iree/decoder.vmfb \
+  --module=xxx.vmfb \
   --function=main_graph \
   --device=local-task \
   --benchmark_time_unit=s \
   --print_statistics=true \
-  --input=1x1x384x384xf32=0.5 \
-  --input=1x384xi64=2 \
-  --input=1x384x8192xf32=1.2
+  --input=@xxx.npy 
 2024-09-05T06:53:20+00:00
 Run on (256 X 2450 MHz CPU s)
 CPU Caches:
@@ -109,54 +107,3 @@ BM_main_graph/process_time/real_time      19216 ms        19193 ms            1 
 DEVICE_LOCAL:    164957184B peak /    164957184B allocated /    164957184B freed /            0B live
 ```
 
-# 6. only for test
-
-```sh
-iree-compile \
-  iree/matmul.mlir \
-  --iree-hal-target-backends=llvm-cpu \
-  --iree-llvmcpu-target-cpu=host \
-  --iree-llvmcpu-target-cpu-features=host \
-  --iree-llvmcpu-loop-interleaving \
-  --iree-llvmcpu-slp-vectorization \
-  --iree-llvmcpu-loop-unrolling \
-  --iree-llvmcpu-loop-vectorization \
-  --compile-mode=std \
-  -o out/iree/matmul.vmbf
-
-iree-benchmark-module \
-  --module=out/iree/matmul.vmbf \
-  --device=local-task \
-  --task_topology_cpu_ids=0,1,2,3 \
-  --function=abs \
-  --input=1x1024x2048xf32=2 \
-  --input=1x2048x512xf32=1
-```
-
---iree-hal-target-backends:
-  - cuda
-  - llvm-cpu,    - cpu target 存在下面这些类型
-    - aarch64    - AArch64 (little endian)
-    - aarch64_32 - AArch64 (little endian ILP32)
-    - aarch64_be - AArch64 (big endian)
-    - arm        - ARM
-    - arm64      - ARM64 (little endian)
-    - arm64_32   - ARM64 (little endian ILP32)
-    - armeb      - ARM (big endian)
-    - riscv32    - 32-bit RISC-V
-    - riscv64    - 64-bit RISC-V
-    - thumb      - Thumb
-    - thumbeb    - Thumb (big endian)
-    - wasm32     - WebAssembly 32-bit
-    - wasm64     - WebAssembly 64-bit
-    - x86        - 32-bit X86: Pentium-Pro and above
-    - x86-64     - 64-bit X86: EM64T and AMD64
-  - metal-spirv
-  - rocm
-  - vmvx
-  - vmvx-inline
-  - vulkan-spirv
-
---iree-benchmark-module --list_devices
-  - local-sync://   synchronous, single-threaded driver that executes work inline
-  - local-task://  asynchronous, multithreaded driver built on IREE's "task" system
