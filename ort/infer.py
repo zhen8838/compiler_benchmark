@@ -13,9 +13,7 @@ def main(folder: str, parallelism: int):
   # options.enable_profiling=True
   # options.profile_file_prefix='12'
   sess = ort.InferenceSession(f'out/{folder}/model.onnx',options)
-  inputs_np['input_tensor'] = inputs_np['inputs_embeds']
-  inputs_np.pop('inputs_embeds')
-  times = 1
+  times = 3
   total = np.testing.measure("sess.run(None, inputs_np)", times)
   print(f"infer time {total/times:.6f}s")
 

@@ -30,20 +30,24 @@ def get_llama(size: Literal["65B", "7B"], num_hidden_layers: int = 1) -> Tuple[t
   cfg = None
   inputs = None
   N = 384
-  if size == "65B":
-    cfg = cfg65b
-    inputs = dict(
-        # input_ids=None,
-        attention_mask=torch.rand([1, 1, N, N], dtype=torch.float32),
-        position_ids=torch.randint(0, N, [1, N], dtype=torch.int64),
-        # past_key_values=None,
-        inputs_embeds=torch.rand([1, N, 8192], dtype=torch.float32),
-        # use_cache=None,
-        # output_attentions=None,
-        # output_hidden_states=None,
-        # return_dict=None,
-        # cache_position=None
-    )
+  match size:
+    case "65B":
+      cfg = cfg65b
+      inputs = dict(
+          # input_ids=None,
+          attention_mask=torch.rand([1, 1, N, N], dtype=torch.float32),
+          position_ids=torch.randint(0, N, [1, N], dtype=torch.int64),
+          # past_key_values=None,
+          inputs_embeds=torch.rand([1, N, 8192], dtype=torch.float32),
+          # use_cache=None,
+          # output_attentions=None,
+          # output_hidden_states=None,
+          # return_dict=None,
+          # cache_position=None
+      )
+    case _:
+      raise NotImplementedError(size)
+
   configuration = LlamaConfig(**cfg)
   # Initializing a model from the llama-7b style configuration
   return (LlamaModel(configuration), inputs)
@@ -79,48 +83,47 @@ def get_qwen2(size=Literal["7B"], num_hidden_layers: int = 1):
       "use_sliding_window": False,
       "vocab_size": 152064
   }
-  N=384
+  N = 384
   match size:
     case '7B':
       cfg = cfg7b
       inputs = dict(
-        # input_ids=None,
-        attention_mask=torch.rand([1, 1, N, N], dtype=torch.float32),
-        position_ids=torch.randint(0, N, [1, N], dtype=torch.int64),
-        # past_key_values=None,
-        inputs_embeds=torch.rand([1, N, 3584], dtype=torch.float32),
-        # use_cache=None,
-        # output_attentions=None,
-        # output_hidden_states=None,
-        # return_dict=None,
-        # cache_position=None
+          # input_ids=None,
+          attention_mask=torch.rand([1, 1, N, N], dtype=torch.float32),
+          position_ids=torch.randint(0, N, [1, N], dtype=torch.int64),
+          # past_key_values=None,
+          inputs_embeds=torch.rand([1, N, 3584], dtype=torch.float32),
+          # use_cache=None,
+          # output_attentions=None,
+          # output_hidden_states=None,
+          # return_dict=None,
+          # cache_position=None
       )
+    case _:
+      raise NotImplementedError(size)
 
   configuration = Qwen2Config(**cfg)
   # Initializing a model from the llama-7b style configuration
   return (Qwen2Model(configuration), inputs)
 
 
-def main():
-  parser = ArgumentParser(description='Process model parameters.')
-  parser.add_argument('--model-name', type=str, help='Name of the model.')
-  parser.add_argument('--model-size', type=str, help='size of the model.')
-  parser.add_argument('--num-hidden-layers', type=int, help='num decoder layers.', default=1)
-  args = parser.parse_args()
-
-  match args.model_name:
+def main(model_name: str, model_size: str, num_hidden_layers: int):
+  match model_name:
     case "llama":
-      (model, inputs) = get_llama(args.model_size, args.num_hidden_layers)
+      (model, inputs) = get_llama(model_size, num_hidden_layers)
     case "qwen2":
-      (model, inputs) = get_qwen2(args.model_size, args.num_hidden_layers)
+      (model, inputs) = get_qwen2(model_size, num_hidden_layers)
+    case _:
+      raise NotImplementedError(model_name)
 
-  folder = f'out/{args.model_name}-{args.model_size}-{args.num_hidden_layers}'
+  folder = f'out/{model_name}-{model_size}-{num_hidden_layers}'
   if not os.path.exists(folder):
     os.mkdir(folder)
   torch.save(inputs, os.path.join(folder, 'inputs.pt'))
 
   # onnx
-  torch.onnx.export(model=model, args=inputs, f=os.path.join(folder, 'model.onnx'), verbose=False)
+  torch.onnx.export(model=model, args=inputs, f=os.path.join(folder, 'model.onnx'),
+                    verbose=False, input_names=[k for (k, v) in inputs.items()])
   # pt
   model.eval()
   mod = torch.jit.trace(model, example_kwarg_inputs=inputs, strict=False)
@@ -128,4 +131,10 @@ def main():
 
 
 if __name__ == '__main__':
-  main()
+  parser = ArgumentParser(description='Process model parameters.')
+  parser.add_argument('--model-name', type=str, help='Name of the model.',
+                      choices=['llama', 'qwen2'])
+  parser.add_argument('--model-size', type=str, help='size of the model.')
+  parser.add_argument('--num-hidden-layers', type=int, help='num decoder layers.', default=1)
+  args = parser.parse_args()
+  main(args.model_name, args.model_size, args.num_hidden_layers)
