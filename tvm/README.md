@@ -11,7 +11,7 @@ my tvm version is `0.18.dev0`.
 Add `Array` in `/site-packages/tvm/relax/utils.py:L120` for convert onnx model.
 
 ```sh
-**python tvm/compile.py --folder-name** xxxx
+python tvm/compile.py --folder-name xxxx
 ```
 
 # Evaluate

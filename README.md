@@ -18,12 +18,33 @@ will save the onnx/pt model in `out`.
 - [tvm](./tvm/README.md)
 - [iree](./iree/README.md)
 
+4. compile & infer
+
+```sh
+#!/bin/zsh
+python e2e/get_model.py --model-name=qwen2 --model-size=7B --num-hidden-layers=32
+Parallel=1
+Folder=qwen2-7B-32
+python iree/compile.py --folder-name=$Folder
+python iree/infer.py --folder-name=$Folder
+python tvm/compile.py --folder-name=$Folder --parallelism=$Parallel
+python tvm/infer.py --folder-name=$Folder
+python ort/infer.py --folder-name=$Folder --parallelism=$Parallel
+python onednn/compile.py --folder-name=$Folder 
+python onednn/infer.py --folder-name=$Folder --parallelism=$Parallel
+```
+
 # BenchMark Results
 
-| model      | arch   | compiler | parallelism | compile time    | evaluate time |
-| ---------- | ------ | -------- | ----------- | --------------- | ------------- |
-| llama65B-1 | x86_64 | tvm      | 1           | 0               | 13.368000s    |
-| llama65B-1 | x86_64 | iree     | 1           | 0               | 19.216000s    |
-| qwen2-7B-1 | x86_64 | tvm      | 1           | 745(144 trials) | 565.616610s   |
-| qwen2-7B-1 | x86_64 | iree     | 1           | 21.352          | segment fault |
-| qwen2-7B-1 | x86_64 | ort      | 1           | 0               | 2.527000s     |
+| model             | arch   | compiler | parallel | compile time (s) | evaluate time(s)   |
+| ----------------- | ------ | -------- | -------- | ---------------- | ------------------ |
+| llama65B-1        | x86_64 | tvm      | 1        | 0                | 13.368000          |
+| llama65B-1        | x86_64 | iree     | 1        | 0                | 19.216000          |
+| qwen2-7B-32       | x86_64 | tvm      | 1        | 5235 (1000 step) | segmentation fault |
+| qwen2-7B-32       | x86_64 | iree     | 1        | 494.668          | no result          |
+| qwen2-7B-32       | x86_64 | ort      | 1        | 0                | 81.243333          |
+| qwen2-7B-32       | x86_64 | onednn   | 1        | 6.604e-05        | 90.386667          |
+| deepseekv2-None-4 | x86_64 | tvm      | 1        | import failed    | Nan                |
+| deepseekv2-None-4 | x86_64 | iree     | 1        | compile failed   | Nan                |
+| deepseekv2-None-4 | x86_64 | ort      | 1        | 0                | 17.576667          |
+| deepseekv2-None-4 | x86_64 | onednn   | 1        | 0.000016         | 18.560000          |

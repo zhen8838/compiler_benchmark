@@ -1,13 +1,15 @@
-import os
+from pathlib import Path
 import torch
 import tvm
 from tvm import relax
 import tvm.meta_schedule as ms
 from tvm.relax.frontend.onnx import from_onnx
+from tvm.relax.frontend.torch import from_fx
 import onnx
 import osarch
 from e2e.utils import convert_inputs, load_inputs
 from argparse import ArgumentParser
+import time
 
 
 @tvm.transform.module_pass(opt_level=0)
@@ -51,20 +53,28 @@ class TuneIRMod:
 
 def main(folder: str, parallelism: int, total_trials: int):
   # config target
-  model_path = f"out/{folder}/model.onnx"
   target = tvm.target.Target(
-      f"llvm -mtriple={tvm.target.codegen.llvm_get_system_triple()} -mcpu={tvm.target.codegen.llvm_get_system_cpu()} -num-cores=1")
+      f"llvm -mtriple={tvm.target.codegen.llvm_get_system_triple()} -mcpu={tvm.target.codegen.llvm_get_system_cpu()} -num-cores={parallelism}")
   ext = 'so' if osarch.detect_system_os() == 'linux' else 'dylib'
-
-  # load model
-  onnx_model = onnx.load_model(model_path, load_external_data=True)
   inputs = load_inputs(folder)
   input_shapes = convert_inputs(inputs, 'shape')
   input_dtypes = convert_inputs(inputs, 'dtype')
-  mod: tvm.IRModule = from_onnx(onnx_model, input_shapes, input_dtypes)
-  outfolder = f"out/tvm/{folder}"
-  database_dir = f"{outfolder}/tuning_logs"
 
+  # load model
+  try:
+    model_path = f"out/{folder}/model.onnx"
+    onnx_model = onnx.load_model(model_path, load_external_data=True)
+    mod: tvm.IRModule = from_onnx(onnx_model, input_shapes, input_dtypes)
+  except:
+    model_path = f"out/{folder}/model.pt2"
+    if not Path(model_path).exists():
+      print(f"not support {folder}!")
+      return
+    model = torch.export.load(model_path)
+    mod: tvm.IRModule = from_fx(model, input_shapes, input_dtypes)
+  outfolder = Path(f"out/tvm/{folder}")
+  database_dir = outfolder / "tuning_logs"
+  tik = time.time()
   with target, tvm.ir.transform.PassContext(opt_level=0):
     mod = tvm.ir.transform.Sequential([
         # Convert BatchNorm into a sequence of simpler ops for fusion
@@ -72,18 +82,20 @@ def main(folder: str, parallelism: int, total_trials: int):
         # Canonicalize the bindings
         relax.transform.CanonicalizeBindings(),
         # Run default optimization pipeline
-        relax.get_pipeline("default_build"),
+        relax.get_pipeline("zero"),
         # relax.get_pipeline("zero"),
         # Tune the model and store the log to database
-        TuneIRMod(database_dir, total_trials, parallelism),
+        TuneIRMod(str(database_dir), total_trials, parallelism),
         # Apply the database
-        relax.transform.MetaScheduleApplyDatabase(database_dir),
+        relax.transform.MetaScheduleApplyDatabase(str(database_dir)),
     ])(mod)
+  tok = time.time()
+  print(f'tvm compile {folder} took {tok-tik}s')
 
-  if not os.path.exists(outfolder):
-    os.mkdir(outfolder)
+  if not outfolder.exists():
+    outfolder.mkdir(parents=True)
   # Only show the main function
-  with open(f'{outfolder}/model.py', 'w') as f:
+  with open(outfolder / 'model.py', 'w') as f:
     f.write(mod.script())
 
   ex = tvm.relax.build(mod, target=target)
@@ -94,6 +106,6 @@ if __name__ == '__main__':
   parser = ArgumentParser(description='Process model parameters.')
   parser.add_argument('--folder-name', type=str, help='Name of the folder.', default='qwen2-7B-1')
   parser.add_argument('--parallelism', type=int, help='the max parallelism.', default=1)
-  parser.add_argument('--total-trials', type=int, help='tune steps.', default=100)
+  parser.add_argument('--total-trials', type=int, help='tune steps.', default=1000)
   args = parser.parse_args()
   main(args.folder_name, args.parallelism, args.total_trials)

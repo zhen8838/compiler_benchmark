@@ -3,19 +3,22 @@ from e2e.utils import load_inputs, convert_inputs
 import onnxruntime as ort
 import numpy as np
 
+
 def main(folder: str, parallelism: int):
   inputs = load_inputs(folder)
   inputs_np = convert_inputs(inputs, 'numpy')
   options = ort.SessionOptions()
   options.inter_op_num_threads = parallelism
   options.intra_op_num_threads = parallelism
-  options.graph_optimization_level = ort.GraphOptimizationLevel(ort.capi.onnxruntime_pybind11_state.GraphOptimizationLevel.ORT_ENABLE_EXTENDED)
+  options.graph_optimization_level = ort.GraphOptimizationLevel(
+      ort.capi.onnxruntime_pybind11_state.GraphOptimizationLevel.ORT_ENABLE_EXTENDED)
   # options.enable_profiling=True
   # options.profile_file_prefix='12'
-  sess = ort.InferenceSession(f'out/{folder}/model.onnx',options)
-  times = 3
+  sess = ort.InferenceSession(f'out/{folder}/model.onnx', options)
+  times = 1
   total = np.testing.measure("sess.run(None, inputs_np)", times)
-  print(f"infer time {total/times:.6f}s")
+  print(f'ort infer {folder} took {total/times:.6f}s')
+
 
 if __name__ == '__main__':
   parser = ArgumentParser(description='Process model parameters.')

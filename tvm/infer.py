@@ -20,7 +20,7 @@ def main(folder: str, profile: bool):
     report = vm.profile('main', *inputs_tvm)
     print(report)
   else:
-    evaluator = vm.time_evaluator("main", dev, number=1)
+    evaluator = vm.time_evaluator("main", dev, number=10)
     eval_res = evaluator(*inputs_tvm)
     print(eval_res)
 
