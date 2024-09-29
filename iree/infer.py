@@ -19,7 +19,8 @@ def main(folder: str):
           "--function=main_graph",
           "--device=local-task",
           "--benchmark_time_unit=s",
-          "--print_statistics=true"]
+          "--print_statistics=true",
+          "--benchmark_repetitions=5"]
 
   for (i, inp) in enumerate(inputs_np.values()):
     shape = "x".join([str(d) for d in inp.shape])
@@ -31,6 +32,7 @@ def main(folder: str):
     args.append(f"--input={shape}x{abitype}=@{input_path}")
 
   benchmark_process = subprocess.run(args=args)
+
 
 if __name__ == '__main__':
   parser = ArgumentParser(description='Process model parameters.')
