@@ -17,7 +17,7 @@ def main(folder: str):
   args = [ireert.benchmark_exe(),
           f"--module={model_path}",
           "--function=main_graph",
-          "--device=local-task",
+          "--device=local-sync",
           "--benchmark_time_unit=s",
           "--print_statistics=true",
           "--benchmark_repetitions=5"]

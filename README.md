@@ -38,8 +38,8 @@ python onednn/infer.py --folder-name=$Folder --parallelism=$Parallel
 
 | model             | arch   | compiler | parallel | compile time (s) | evaluate time(s)   |
 | ----------------- | ------ | -------- | -------- | ---------------- | ------------------ |
-| llama-65B-1       | x86_64 | tvm      | 1        | 13585            | 13.368000          |
-| llama-65B-1       | x86_64 | iree     | 1        | 54.0515          | 25.956             |
+| llama-65B-1       | x86_64 | tvm      | 1        | 13585            | 13.368             |
+| llama-65B-1       | x86_64 | iree     | 1        | 54.0515          | 19.786             |
 | llama-65B-1       | x86_64 | ort      | 1        | 0                | 9.49               |
 | llama-65B-1       | x86_64 | onednn   | 1        | 0                | 10.000000          |
 | qwen2-7B-32       | x86_64 | tvm      | 1        | 5235 (1000 step) | segmentation fault |
