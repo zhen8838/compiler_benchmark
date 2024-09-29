@@ -14,8 +14,8 @@ import time
 
 @tvm.transform.module_pass(opt_level=0)
 class TuneIRMod:
-  def __init__(self, work_dir: str, max_trials_global: int, max_jobs_per_core: int = 1):
-    self.max_jobs_per_core = max_jobs_per_core
+  def __init__(self, work_dir: str, max_trials_global: int, parallelism: int = 1):
+    self.parallelism = parallelism
     self.work_dir = work_dir
     self.max_trials_global = max_trials_global
 
@@ -27,15 +27,15 @@ class TuneIRMod:
       if isinstance(rule, ms.schedule_rule.ParallelizeVectorizeUnroll):
         rule: ms.schedule_rule.ParallelizeVectorizeUnroll
         newrules.append(ms.schedule_rule.ParallelizeVectorizeUnroll(
-            self.max_jobs_per_core, rule.max_vectorize_extent, rule.unroll_max_steps, rule.unroll_explicit))
+            self.parallelism if self.parallelism > 1 else -1, rule.max_vectorize_extent, rule.unroll_max_steps, rule.unroll_explicit))
       else:
         newrules.append(rule.clone())
     mutators = ms.Mutator.create(target.kind.name)
     newmutators = []
     for m in mutators:
       if isinstance(m, ms.mutator.MutateParallel):
-        if self.max_jobs_per_core > 1:
-          newmutators.append(ms.mutator.MutateParallel(self.max_jobs_per_core))
+        if self.parallelism > 1:
+          newmutators.append(ms.mutator.MutateParallel(self.parallelism))
       else:
         newmutators.append(m.clone())
     sg = ms.space_generator.PostOrderApply(sch_rules=newrules)
@@ -82,8 +82,7 @@ def main(folder: str, parallelism: int, total_trials: int):
         # Canonicalize the bindings
         relax.transform.CanonicalizeBindings(),
         # Run default optimization pipeline
-        relax.get_pipeline("zero"),
-        # relax.get_pipeline("zero"),
+        relax.get_pipeline("default_build"),
         # Tune the model and store the log to database
         TuneIRMod(str(database_dir), total_trials, parallelism),
         # Apply the database
