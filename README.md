@@ -36,6 +36,15 @@ python onednn/infer.py --folder-name=$Folder --parallelism=$Parallel
 
 # BenchMark Results
 
+```sh
+Run on (256 X 2450 MHz CPU s)
+CPU Caches:
+  L1 Data 32 KiB (x128)
+  L1 Instruction 32 KiB (x128)
+  L2 Unified 512 KiB (x128)
+  L3 Unified 32768 KiB (x16)
+```
+
 | model             | arch   | compiler | parallel | compile time (s) | evaluate time(s)   |
 | ----------------- | ------ | -------- | -------- | ---------------- | ------------------ |
 | llama-65B-1       | x86_64 | tvm      | 1        | 13585            | 13.368             |
