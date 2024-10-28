@@ -7,6 +7,27 @@ from transformers import LlamaModel, LlamaConfig
 from transformers import AutoModel, PretrainedConfig, AutoModelForCausalLM
 import torch
 
+def get_llama3_1(size: Literal["8B"], num_hidden_layers: int = -1) -> Tuple[torch.nn.Module, dict]:
+  cfg = LlamaConfig.from_json_file('e2e/llama3.1_config.json')
+  cfg.name_or_path = 'e2e'
+  cfg.use_cache = False
+  cfg.torch_dtype = "float32"
+  if num_hidden_layers > 0:
+    cfg.num_hidden_layers = num_hidden_layers
+  N = 384
+  match size:
+    case "8B":
+      inputs = dict(
+          attention_mask=torch.rand([1, 1, N, N], dtype=torch.float32),
+          position_ids=torch.randint(0, N, [1, N], dtype=torch.int64),
+          inputs_embeds=torch.rand([1, N, 8192], dtype=torch.float32),
+      )
+    case _:
+      raise NotImplementedError(size)
+  inputs = dict(attention_mask=torch.rand([1, N], dtype=torch.float32),
+                position_ids=torch.randint(0, N, [1, N], dtype=torch.int64),
+                inputs_embeds=torch.rand([1, N, cfg.hidden_size], dtype=torch.float32))
+  return (LlamaModel(cfg), inputs, cfg.num_hidden_layers)
 
 def get_llama(size: Literal["65B", "7B"], num_hidden_layers: int = -1) -> Tuple[torch.nn.Module, dict]:
   cfg65b = {
@@ -146,6 +167,8 @@ def main(model_name: str, model_size: str, num_hidden_layers: int):
   match model_name:
     case "llama":
       (model, inputs, num_layers) = get_llama(model_size, num_hidden_layers)
+    case "llama3.1":
+      (model, inputs, num_layers) = get_llama3_1(model_size, num_hidden_layers)
     case "qwen2":
       (model, inputs, num_layers) = get_qwen2(model_size, num_hidden_layers)
     case 'deepseekv2':
@@ -186,7 +209,7 @@ def main(model_name: str, model_size: str, num_hidden_layers: int):
 if __name__ == '__main__':
   parser = ArgumentParser(description='Process model parameters.')
   parser.add_argument('--model-name', type=str, help='Name of the model.',
-                      choices=['llama', 'qwen2', 'deepseekv2', 'rwkv5'])
+                      choices=['llama', 'llama3.1', 'qwen2', 'deepseekv2', 'rwkv5'])
   parser.add_argument('--model-size', type=str, help='size of the model.')
   parser.add_argument('--num-hidden-layers', type=int, help='num decoder layers.', default=-1)
   args = parser.parse_args()

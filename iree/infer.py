@@ -7,20 +7,28 @@ from argparse import ArgumentParser
 import iree.runtime as ireert
 
 
-def main(folder: str):
+def main(folder: str, parallelism: int):
   inputs = load_inputs(folder)
   model_path = f'out/iree/{folder}/model.vmfb'
   outfolder = Path(f'out/iree/{folder}')
   inputs_np = convert_inputs(inputs, 'numpy')
 
-  # mod = ireert.load_vm_flatbuffer_file(str(model_path), backend='llvm-cpu')
+  mod = ireert.load_vm_flatbuffer_file(str(model_path), backend='llvm-cpu')
   args = [ireert.benchmark_exe(),
           f"--module={model_path}",
           "--function=main_graph",
-          "--device=local-sync",
           "--benchmark_time_unit=s",
           "--print_statistics=true",
           "--benchmark_repetitions=5"]
+  if parallelism:
+    args.append("--device=local-task")
+    args.append("--task_topology_performance_level=performance")
+    if parallelism >= 64:
+      args.append(f'--task_topology_group_count={parallelism}')
+    else:
+      args.append(f'--task_topology_cpu_ids={",".join(map(lambda i : str(i), range(0, parallelism)))}')
+  else:
+    args.append("--device=local-sync")
 
   for (i, inp) in enumerate(inputs_np.values()):
     shape = "x".join([str(d) for d in inp.shape])
@@ -37,5 +45,6 @@ def main(folder: str):
 if __name__ == '__main__':
   parser = ArgumentParser(description='Process model parameters.')
   parser.add_argument('--folder-name', type=str, help='Name of the folder.', default='qwen2-7B-1')
+  parser.add_argument('--parallelism', type=int, help='the max parallelism.', default=0)
   args = parser.parse_args()
-  main(args.folder_name)
+  main(args.folder_name, args.parallelism)

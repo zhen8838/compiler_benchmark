@@ -2,16 +2,22 @@ import torch
 from argparse import ArgumentParser
 from e2e.utils import load_inputs, convert_inputs
 import numpy as np
+from time import time
+import intel_extension_for_pytorch as ipex
 
 
 def main(folder: str, parallelism: int):
   inputs = load_inputs(folder)
   torch.set_num_interop_threads(parallelism)
   torch.set_num_threads(parallelism)
-  model = torch.jit.load(f'out/onednn/{folder}/model.pt')
-  times = 1
-  total = np.testing.measure("model(**inputs)", times)
-  print(f'onednn infer {folder} took {total/times:.6f}s')
+  model = torch.load(f'out/{folder}/model.pt')
+  tik = time()
+  opt_model = torch.compile(model, backend='ipex')
+  print(f'inductor compile {folder} took {time() - tik:.6f}s')
+  times = 5
+  with torch.no_grad():
+    total = np.testing.measure("opt_model(**inputs)", times)
+    print(f'inductor infer {folder} took {total/times:.6f}s')
 
 
 if __name__ == '__main__':

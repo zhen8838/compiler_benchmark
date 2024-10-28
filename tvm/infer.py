@@ -5,17 +5,18 @@ import numpy as np
 import osarch
 from e2e.utils import convert_inputs, load_inputs
 from argparse import ArgumentParser
+import os
 
 
-def main(folder: str, profile: bool):
+def main(folder: str, parallelism: int, profile: bool):
+  os.environ['TVM_NUM_THREADS'] = str(parallelism)
   ext = 'so' if osarch.detect_system_os() == 'linux' else 'dylib'
-
   mod = tvm.runtime.load_module(f"out/tvm/{folder}/model.{ext}")
   dev = tvm.cpu(0)
   vm = tvm.relax.VirtualMachine(mod, dev, profile=profile)
   inputs = load_inputs(folder)
   inputs_np = convert_inputs(inputs, 'numpy')
-  inputs_tvm = list([tvm.nd.array(v, dev) for (k,v) in inputs_np.items()])
+  inputs_tvm = list([tvm.nd.array(v, dev) for (k, v) in inputs_np.items()])
   if profile:
     report = vm.profile('main', *inputs_tvm)
     print(report)
@@ -27,6 +28,7 @@ def main(folder: str, profile: bool):
 if __name__ == '__main__':
   parser = ArgumentParser(description='Process model parameters.')
   parser.add_argument('--folder-name', type=str, help='Name of the folder.', default='qwen2-7B-1')
+  parser.add_argument('--parallelism', type=int, help='the max parallelism.', default=1)
   parser.add_argument('--profile', type=bool, help='enable profile.', default=False)
   args = parser.parse_args()
-  main(args.folder_name, args.profile)
+  main(args.folder_name, args.parallelism, args.profile)

@@ -14,8 +14,8 @@ import time
 
 @tvm.transform.module_pass(opt_level=0)
 class TuneIRMod:
-  def __init__(self, work_dir: str, max_trials_global: int, parallelism: int = 1):
-    self.parallelism = parallelism
+  def __init__(self, work_dir: str, max_trials_global: int, max_jobs_per_core: int = 1):
+    self.max_jobs_per_core = max_jobs_per_core
     self.work_dir = work_dir
     self.max_trials_global = max_trials_global
 
@@ -27,15 +27,15 @@ class TuneIRMod:
       if isinstance(rule, ms.schedule_rule.ParallelizeVectorizeUnroll):
         rule: ms.schedule_rule.ParallelizeVectorizeUnroll
         newrules.append(ms.schedule_rule.ParallelizeVectorizeUnroll(
-            self.parallelism if self.parallelism > 1 else -1, rule.max_vectorize_extent, rule.unroll_max_steps, rule.unroll_explicit))
+            self.max_jobs_per_core if self.max_jobs_per_core >= 1 else -1, rule.max_vectorize_extent, rule.unroll_max_steps, rule.unroll_explicit))
       else:
         newrules.append(rule.clone())
     mutators = ms.Mutator.create(target.kind.name)
     newmutators = []
     for m in mutators:
       if isinstance(m, ms.mutator.MutateParallel):
-        if self.parallelism > 1:
-          newmutators.append(ms.mutator.MutateParallel(self.parallelism))
+        if self.max_jobs_per_core >= 1:
+          newmutators.append(ms.mutator.MutateParallel(self.max_jobs_per_core))
       else:
         newmutators.append(m.clone())
     sg = ms.space_generator.PostOrderApply(sch_rules=newrules)
@@ -51,10 +51,10 @@ class TuneIRMod:
     return mod
 
 
-def main(folder: str, parallelism: int, total_trials: int):
+def main(folder: str, total_trials: int):
   # config target
   target = tvm.target.Target(
-      f"llvm -mtriple={tvm.target.codegen.llvm_get_system_triple()} -mcpu={tvm.target.codegen.llvm_get_system_cpu()} -num-cores={parallelism}")
+      f"llvm -mtriple={tvm.target.codegen.llvm_get_system_triple()} -mcpu={tvm.target.codegen.llvm_get_system_cpu()}")
   ext = 'so' if osarch.detect_system_os() == 'linux' else 'dylib'
   inputs = load_inputs(folder)
   input_shapes = convert_inputs(inputs, 'shape')
@@ -84,7 +84,7 @@ def main(folder: str, parallelism: int, total_trials: int):
         # Run default optimization pipeline
         relax.get_pipeline("default_build"),
         # Tune the model and store the log to database
-        TuneIRMod(str(database_dir), total_trials, parallelism),
+        TuneIRMod(str(database_dir), total_trials, 16),
         # Apply the database
         relax.transform.MetaScheduleApplyDatabase(str(database_dir)),
     ])(mod)
@@ -104,7 +104,6 @@ def main(folder: str, parallelism: int, total_trials: int):
 if __name__ == '__main__':
   parser = ArgumentParser(description='Process model parameters.')
   parser.add_argument('--folder-name', type=str, help='Name of the folder.', default='qwen2-7B-1')
-  parser.add_argument('--parallelism', type=int, help='the max parallelism.', default=1)
   parser.add_argument('--total-trials', type=int, help='tune steps.', default=1000)
   args = parser.parse_args()
-  main(args.folder_name, args.parallelism, args.total_trials)
+  main(args.folder_name, args.total_trials)

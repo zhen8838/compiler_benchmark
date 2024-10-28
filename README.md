@@ -48,7 +48,14 @@ CPU Caches:
 | model             | arch   | compiler | parallel | compile time (s) | evaluate time(s)   |
 | ----------------- | ------ | -------- | -------- | ---------------- | ------------------ |
 | llama-65B-1       | x86_64 | tvm      | 1        | 13585            | 13.368             |
+| llama-65B-1       | x86_64 |          | 8        |                  | 2.446              |
+| llama-65B-1       | x86_64 |          | 64       |                  | 0.449              |
 | llama-65B-1       | x86_64 | iree     | 1        | 54.0515          | 19.786             |
+| llama-65B-1       | x86_64 |          | 4        |                  | 7.405              |
+| llama-65B-1       | x86_64 |          | 8        |                  | 3.895              |
+| llama-65B-1       | x86_64 |          | 16       |                  | 3.468              |
+| llama-65B-1       | x86_64 |          | 64       |                  | 4.226              |
+| llama-65B-1       | x86_64 | inductor | 1        | 1.290041         | 9.398              |
 | llama-65B-1       | x86_64 | ort      | 1        | 0                | 9.49               |
 | llama-65B-1       | x86_64 | onednn   | 1        | 0                | 10.000000          |
 | qwen2-7B-32       | x86_64 | tvm      | 1        | 5235 (1000 step) | segmentation fault |
