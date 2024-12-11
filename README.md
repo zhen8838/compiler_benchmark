@@ -1,7 +1,17 @@
 # Usage
 
-1. set path
+0. setup env
+
+```sh
+conda create -n benchmark Python=3.11
+conda activate benchmark
+pip install -r requirements.txt
+pip install --pre torch-mlir --extra-index-url https://download.pytorch.org/whl/nightly/cpu -f https://github.com/llvm/torch-mlir-release/releases/expanded_assets/dev-wheels
+pip install --pre -U -f https://mlc.ai/wheels mlc-ai-nightly-cpu
 ```
+
+1. set path
+```sh
 PYTHONPATH=xxx/compiler_benchmark
 ```
 
@@ -48,16 +58,25 @@ CPU Caches:
 | model             | arch   | compiler | parallel | compile time (s) | evaluate time(s)   |
 | ----------------- | ------ | -------- | -------- | ---------------- | ------------------ |
 | llama-65B-1       | x86_64 | tvm      | 1        | 13585            | 13.368             |
-| llama-65B-1       | x86_64 |          | 8        |                  | 2.446              |
-| llama-65B-1       | x86_64 |          | 64       |                  | 0.449              |
+|                   |        |          | 8        |                  | 2.446              |
+|                   |        |          | 64       |                  | 0.449              |
 | llama-65B-1       | x86_64 | iree     | 1        | 54.0515          | 19.786             |
-| llama-65B-1       | x86_64 |          | 4        |                  | 7.405              |
-| llama-65B-1       | x86_64 |          | 8        |                  | 3.895              |
-| llama-65B-1       | x86_64 |          | 16       |                  | 3.468              |
-| llama-65B-1       | x86_64 |          | 64       |                  | 4.226              |
+|                   |        |          | 4        |                  | 7.405              |
+|                   |        |          | 8        |                  | 3.895              |
+|                   |        |          | 16       |                  | 3.468              |
+|                   |        |          | 64       |                  | 4.226              |
+| llama-65B-1       | x86_64 | nncase   | 1        | 849              | 12.56              |
+|                   |        |          | 8        | 849              | 1.545              |
+|                   |        |          | 64       | 469.54           | 0.551              |
 | llama-65B-1       | x86_64 | inductor | 1        | 1.290041         | 9.398              |
-| llama-65B-1       | x86_64 | ort      | 1        | 0                | 9.49               |
+|                   |        | inductor | 8        | 0.000795         | 1.830039           |
+|                   |        | inductor | 64       | 0.001051         | 0.541386           |
+| llama-65B-1       | x86_64 | ort      | 1        | /                | 9.49               |
+|                   |        | ort      | 8        | /                | 1.398              |
+|                   |        | ort      | 64       | /                | 0.673              |
 | llama-65B-1       | x86_64 | onednn   | 1        | 0                | 10.000000          |
+|                   |        | onednn   | 8        | 0                | 1.6932             |
+|                   |        | onednn   | 64       | 0                | 0.5655             |
 | qwen2-7B-32       | x86_64 | tvm      | 1        | 5235 (1000 step) | segmentation fault |
 | qwen2-7B-32       | x86_64 | iree     | 1        | 494.668          | no result          |
 | qwen2-7B-32       | x86_64 | ort      | 1        | 0                | 81.243333          |

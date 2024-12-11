@@ -187,9 +187,7 @@ def main(model_name: str, model_size: str, num_hidden_layers: int):
   torch.onnx.export(model=model, args=inputs, f=os.path.join(folder, 'model.onnx'),
                     verbose=False, input_names=[k for (k, v) in inputs.items()])
   # pt
-  model.eval()
-  mod = torch.jit.trace(model, example_kwarg_inputs=inputs, strict=False)
-  mod.save(os.path.join(folder, 'model.pt'))
+  torch.save(model, os.path.join(folder, 'model.pt'))
 
   # fx pt
   try:

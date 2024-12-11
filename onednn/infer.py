@@ -2,6 +2,7 @@ import torch
 from argparse import ArgumentParser
 from e2e.utils import load_inputs, convert_inputs
 import numpy as np
+from time import time
 
 
 def main(folder: str, parallelism: int):
@@ -9,8 +10,14 @@ def main(folder: str, parallelism: int):
   torch.set_num_interop_threads(parallelism)
   torch.set_num_threads(parallelism)
   model = torch.jit.load(f'out/onednn/{folder}/model.pt')
-  times = 1
-  total = np.testing.measure("model(**inputs)", times)
+  # warm up
+  model(**inputs)
+  times = 10
+  total = 0
+  for i in range(times):
+    start_time = time()
+    model(**inputs)
+    total += time() - start_time
   print(f'onednn infer {folder} took {total/times:.6f}s')
 
 
